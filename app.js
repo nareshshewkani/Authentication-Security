@@ -5,7 +5,10 @@ const ejs = require("ejs");
 const mongoose = require("mongoose");
 const encrypt = require("mongoose-encryption");
 // require('dotenv').config()
-const md5 = require("md5");
+// const md5 = require("md5");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
+
 const app = express();
 
 app.set('view engine','ejs');
@@ -49,13 +52,16 @@ app.post('/login', function(req, res){
         if(result.length==0) {
             console.log('Incorrect email');
         }
-        else if(result.password == md5(req.body.password)) {
+        // Load hash from your password DB.
+        bcrypt.compare(req.body.password, result.password, function(err, result) {
+        if(result==true)
             res.render('secrets');
-        }
         else {
             console.log('Incorrect password!');
             console.log(result.password);
         }
+        
+        });
     })
     .catch(function(err) {
         console.log(err);
@@ -64,17 +70,23 @@ app.post('/login', function(req, res){
 });
 
 app.post('/register', function(req, res) {
-    const newUser = new User({
-        email: req.body.username,
-        password: md5(req.body.password)
+
+    bcrypt.hash(req.body.password, saltRounds).then(function(hash) {
+        // Store hash in your password DB.
+        const newUser = new User({
+            email: req.body.username,
+            password: hash
+        });
+        newUser.save()
+        .then(function() {
+            res.render('secrets');
+        })
+        .catch(function(err) {
+            console.log(err);
+        });
     });
-    newUser.save()
-    .then(function() {
-        res.render('secrets');
-    })
-    .catch(function(err) {
-        console.log(err);
-    });
+
+    
 });
 
 app.listen(3000, function() {
